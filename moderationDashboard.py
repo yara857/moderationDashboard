@@ -21,7 +21,7 @@ SPREADSHEET_ID = "1sUvzHYfY5RmAs0BPmW3B1tRFWe6ryNXudi1ss0kLJ3g"
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
 creds = Credentials.from_service_account_file(
-    r"D:\2024\striped-sunspot-451315-t6-343357709c71.json",
+    r"striped-sunspot-451315-t6-343357709c71.json",
     scopes=SCOPES
 )
 sheets = build("sheets", "v4", credentials=creds).spreadsheets()
@@ -124,3 +124,4 @@ for idx, (page, token) in enumerate(PAGES.items()):
 
             st.success(f"Done! Extracted {len(rows)} phone numbers.")
             st.dataframe(pd.DataFrame(rows, columns=["Sender", "Message", "Phone", "Created"]))
+
