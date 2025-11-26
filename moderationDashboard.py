@@ -8,7 +8,7 @@ import pandas as pd
 # --------------------------------------------
 st.set_page_config(page_title="Facebook Phone Extractor", layout="wide")
 st.title("📩 Facebook Inbox Phone Extractor")
-st.caption("Extract phone numbers from page inbox — NO Google Sheets")
+st.caption("Extract phone numbers from page inbox ")
 
 # --------------------------------------------
 # PAGE TOKENS
@@ -73,19 +73,6 @@ for i, (page_name, token) in enumerate(PAGES.items()):
 
             df = pd.DataFrame(rows, columns=["Sender", "Message", "Phone", "Created"])
             st.success(f"Found {len(df)} phone numbers")
+
+            # -------- show only, NO download --------
             st.dataframe(df)
-
-            # Download Excel or CSV
-            st.download_button(
-                label="📥 Download Excel",
-                data=df.to_excel(index=False, engine='openpyxl'),
-                file_name=f"{page_name}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-
-            st.download_button(
-                label="📥 Download CSV",
-                data=df.to_csv(index=False).encode(),
-                file_name=f"{page_name}.csv",
-                mime="text/csv"
-            )
