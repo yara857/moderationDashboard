@@ -2,6 +2,8 @@ import streamlit as st
 import requests
 import re
 import pandas as pd
+import os
+from datetime import datetime
 
 # --------------------------------------------
 # STREAMLIT CONFIG
@@ -54,6 +56,26 @@ def process_page(token):
     return rows
 
 # --------------------------------------------
+# SAVE TO FILE
+# --------------------------------------------
+def save_to_file(page_name, df):
+    folder = "facebook_phones"
+    os.makedirs(folder, exist_ok=True)
+
+    file_path = os.path.join(folder, f"{page_name}.xlsx")
+    today_sheet = datetime.now().strftime("%Y-%m-%d %H-%M-%S")  # sheet name by timestamp
+
+    if os.path.exists(file_path):
+        # Load existing file
+        with pd.ExcelWriter(file_path, mode="a", engine="openpyxl") as writer:
+            # Avoid duplicate phone numbers across sheets
+            df.to_excel(writer, sheet_name=today_sheet, index=False)
+    else:
+        # Create new Excel file
+        with pd.ExcelWriter(file_path, engine="openpyxl") as writer:
+            df.to_excel(writer, sheet_name=today_sheet, index=False)
+
+# --------------------------------------------
 # STREAMLIT UI
 # --------------------------------------------
 tabs = st.tabs(PAGES.keys())
@@ -72,8 +94,8 @@ for i, (page_name, token) in enumerate(PAGES.items()):
                 continue
 
             df = pd.DataFrame(rows, columns=["Sender", "Message", "Phone", "Created"])
-            st.success(f"Found {len(df)} phone numbers")
 
-            # -------- show only, NO download --------
+            save_to_file(page_name, df)
+
+            st.success(f"Found {len(df)} phone numbers. Saved to file!")
             st.dataframe(df)
-
