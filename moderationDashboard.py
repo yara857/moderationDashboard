@@ -174,14 +174,47 @@ st.info(f"Total Unique Records: **{len(st.session_state.cumulative_df)}**")
 
 df = st.session_state.cumulative_df.copy()
 
-# Ensure Status column exists
+# ------------------------------------------------------------
+# PRODUCT COLUMN LOGIC
+# ------------------------------------------------------------
+def get_product(page):
+    if page == "DrElokabyDrPeel":
+        return "cold peeling"
+    elif page == "صيدليات العقبي":
+        return "نحافه"
+    else:
+        return "شعر"
+
+if "Product" not in df.columns:
+    df["Product"] = df["PageName"].apply(get_product)
+else:
+    # Update product for all rows to ensure correct assignment
+    df["Product"] = df["PageName"].apply(get_product)
+
+# ------------------------------------------------------------
+# STATUS COLUMN (RESET ALL TO "None")
+# ------------------------------------------------------------
+status_options = [
+    "تم التوزيع",
+    "تم التأكيد",
+    "جاري المتابعة",
+    "تم الإلغاء",
+    "لا يرد",
+    "جاري المحاولة",
+    "None"
+]
+
 if "Status" not in df.columns:
-    df["Status"] = "Not Distributed"  # default value
+    df["Status"] = "None"
+else:
+    df["Status"] = "None"   # RESET ALL STATS
 
-st.write("### ✏️ Update Status (Distributed / Not Distributed)")
+# ------------------------------------------------------------
+# STATUS EDITOR TABLE
+# ------------------------------------------------------------
+st.write("### ✏️ Update Status")
 
-# Editable data table for status column only
-editable_df = df[["Phone", "PageName", "Sender", "Created", "Message", "Status"]].copy()
+editable_df = df[["Phone", "PageName", "Product", "Sender", "Created", "Message", "Status"]]
 
 edited_df = st.data_editor(
     editable_df,
@@ -189,48 +222,48 @@ edited_df = st.data_editor(
     column_config={
         "Status": st.column_config.SelectboxColumn(
             "Status",
-            options=["Distributed", "Not Distributed"],
-            help="Mark if this phone number was distributed or not",
+            options=status_options,
         )
     },
-    key="editor",
+    key="status_editor",
 )
 
-# Save updates back to session_state + CSV
 df.update(edited_df)
 st.session_state.cumulative_df = df
-save_cumulative_data(df)
 
-st.success("✔ Status updated and saved!")
+# SAVE cumulative file as CSV
+csv_path = "cumulative_phones.csv"
+df.to_csv(csv_path, index=False, encoding="utf-8-sig")
+st.success("✔ Status updated & saved!")
 
-# -------------------------------------
-# SELECT ROWS FOR DOWNLOAD
-# -------------------------------------
+
+# ------------------------------------------------------------
+# SELECT RECORDS TO DOWNLOAD (WITH INDEX)
+# ------------------------------------------------------------
 st.write("### 📥 Select Records to Download")
 
-# Add a checkbox column for selecting rows
 df_selection = df.copy()
 df_selection["Select"] = False
 
 selected_df = st.data_editor(
     df_selection,
+    hide_index=False,     # SHOW INDEX
     key="selector",
-    hide_index=True,
     column_config={
         "Select": st.column_config.CheckboxColumn("Select")
     },
     use_container_width=True,
 )
 
-# Filter selected rows
 download_data = selected_df[selected_df["Select"] == True].drop(columns=["Select"])
 
 if not download_data.empty:
-    csv_selected = download_data.to_csv(index=False).encode("utf-8")
+    csv_selected = download_data.to_csv(index=True, encoding="utf-8-sig").encode("utf-8-sig")
+
     st.download_button(
-        label="⬇ Download Selected Records",
+        label="⬇ Download Selected Records (CSV)",
         data=csv_selected,
-        file_name="selected_facebook_records.csv",
+        file_name="selected_records.csv",
         mime="text/csv",
     )
 else:
