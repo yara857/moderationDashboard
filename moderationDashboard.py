@@ -62,18 +62,14 @@ def save_to_file(page_name, df):
     folder = "facebook_phones"
     os.makedirs(folder, exist_ok=True)
 
-    file_path = os.path.join(folder, f"{page_name}.xlsx")
-    today_sheet = datetime.now().strftime("%Y-%m-%d %H-%M-%S")  # sheet name by timestamp
+    file_path = os.path.join(folder, f"{page_name}.csv")
 
     if os.path.exists(file_path):
-        # Load existing file
-        with pd.ExcelWriter(file_path, mode="a", engine="openpyxl") as writer:
-            # Avoid duplicate phone numbers across sheets
-            df.to_excel(writer, sheet_name=today_sheet, index=False)
-    else:
-        # Create new Excel file
-        with pd.ExcelWriter(file_path, engine="openpyxl") as writer:
-            df.to_excel(writer, sheet_name=today_sheet, index=False)
+        existing_df = pd.read_csv(file_path)
+        df = pd.concat([existing_df, df]).drop_duplicates(subset=["Phone"])
+
+    df.to_csv(file_path, index=False)
+
 
 # --------------------------------------------
 # STREAMLIT UI
@@ -99,3 +95,4 @@ for i, (page_name, token) in enumerate(PAGES.items()):
 
             st.success(f"Found {len(df)} phone numbers. Saved to file!")
             st.dataframe(df)
+
