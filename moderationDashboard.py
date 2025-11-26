@@ -167,21 +167,38 @@ for i, (page_name, token) in enumerate(PAGES.items()):
                     st.success(f"✅ Found {len(new_rows)} messages. Added **{new_count}** new, unique phone numbers from **{page_name}**. Skipped {skipped_count} duplicates.")
                 elif len(new_rows) > 0 and new_count == 0:
                     st.info(f"Found {len(new_rows)} messages, but all were duplicates. Total unique records unchanged.")
-    # --- GLOBAL CUMULATIVE DISPLAY ---
+# --- GLOBAL CUMULATIVE DISPLAY ---
 st.markdown("---")
 st.header("🌎 Global Cumulative Extracted Phone Numbers")
 st.info(f"Total Unique Records: **{len(st.session_state.cumulative_df)}**")
 
 df = st.session_state.cumulative_df.copy()
 
-# Ensure Status column exists
+# ------------------------------------------------------------
+# Add Product Column
+# ------------------------------------------------------------
+def get_product(page):
+    if page == "DrElokabyDrPeel":
+        return "cold peeling"
+    elif page == "صيدليات العقبي":
+        return "نحافه"
+    else:
+        return "شعر"
+
+if "Product" not in df.columns:
+    df["Product"] = df["PageName"].apply(get_product)
+
+# ------------------------------------------------------------
+# Status Column - RESET to None for all rows
+# ------------------------------------------------------------
 if "Status" not in df.columns:
-    df["Status"] = "Not Distributed"  # default value
+    df["Status"] = "None"
+else:
+    df["Status"] = "None"
 
-st.write("### ✏️ Update Status (Distributed / Not Distributed)")
+st.write("### ✏️ Update Status")
 
-# Editable data table for status column only
-editable_df = df[["Phone", "PageName", "Sender", "Created", "Message", "Status"]].copy()
+editable_df = df[["Phone", "PageName", "Product", "Sender", "Created", "Message", "Status"]]
 
 edited_df = st.data_editor(
     editable_df,
@@ -189,51 +206,63 @@ edited_df = st.data_editor(
     column_config={
         "Status": st.column_config.SelectboxColumn(
             "Status",
-            options=["Distributed", "Not Distributed"],
-            help="Mark if this phone number was distributed or not",
+            options=[
+                "تم التوزيع",
+                "تم التأكيد",
+                "جاري المتابعة",
+                "تم الإلغاء",
+                "لا يرد",
+                "جاري المحاولة",
+                "None"
+            ],
         )
     },
     key="editor",
 )
 
-# Save updates back to session_state + CSV
 df.update(edited_df)
 st.session_state.cumulative_df = df
-save_cumulative_data(df)
+
+# Save as Excel instead of CSV
+excel_path = "cumulative_phones.xlsx"
+df.to_excel(excel_path, index=False)
 
 st.success("✔ Status updated and saved!")
 
-# -------------------------------------
-# SELECT ROWS FOR DOWNLOAD
-# -------------------------------------
+# ------------------------------------------------------------
+# TABLE FOR SELECTING ROWS TO DOWNLOAD (with Index)
+# ------------------------------------------------------------
 st.write("### 📥 Select Records to Download")
 
-# Add a checkbox column for selecting rows
 df_selection = df.copy()
 df_selection["Select"] = False
 
 selected_df = st.data_editor(
     df_selection,
     key="selector",
-    hide_index=True,
+    hide_index=False,
     column_config={
         "Select": st.column_config.CheckboxColumn("Select")
     },
     use_container_width=True,
 )
 
-# Filter selected rows
 download_data = selected_df[selected_df["Select"] == True].drop(columns=["Select"])
 
 if not download_data.empty:
-    csv_selected = download_data.to_csv(index=False).encode("utf-8")
+    # Save selected rows to Excel
+    from io import BytesIO
+    import openpyxl
+
+    buffer = BytesIO()
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        download_data.to_excel(writer, index=True, sheet_name="Selected")
+
     st.download_button(
-        label="⬇ Download Selected Records",
-        data=csv_selected,
-        file_name="selected_facebook_records.csv",
-        mime="text/csv",
+        label="⬇ Download Selected Records (Excel)",
+        data=buffer.getvalue(),
+        file_name="selected_records.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 else:
     st.warning("No records selected for download.")
-
-
