@@ -2,7 +2,7 @@ import requests
 import re
 import pandas as pd
 import streamlit as st
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import pytz
 
 # --------------------------------------------
@@ -10,10 +10,10 @@ import pytz
 # --------------------------------------------
 st.set_page_config(page_title="Facebook Phone Extractor", layout="wide")
 st.title("📩 Facebook Inbox Phone Extractor")
-st.caption("Extract phone numbers from page inbox")
+st.caption("Extract phone numbers from page inbox (Last 24 Hours Only)")
 
 # --------------------------------------------
-# PAGE TOKENS (Unchanged)
+# PAGE TOKENS (Replace these with your current, valid tokens)
 # --------------------------------------------
 PAGES = {
     "Elokabyofficial": "EAAIObOmY9V4BQHn7kMYN7ZA34fW3s5cc1Q1IKm8iLW0YBsjjqTLZC6twmqL7k882e2rpTGCm8cUEg5SYRZA0JVM9dItBcxyVZBu7mkOEi3emuGmtMQkNERlCGlULQc59bEiU5sOmcUrdK4yM744u2TTe1MtFVkZA5ZALdO1rditBcXZA83kIgfbcWQZC9YNHXVw3Aj0ZD",
@@ -27,84 +27,106 @@ PAGES = {
 }
 
 # --------------------------------------------
-# REGEX (Unchanged)
+# REGEX
 # --------------------------------------------
+# Matches Egyptian phone numbers starting with 01 followed by 9 digits
 english_phone = re.compile(r"\b01[0-9]{9}\b")
+# Matches Egyptian phone numbers using Arabic numerals (٠١ followed by 9 digits)
 arabic_phone = re.compile(r"\b٠١[٠-٩]{9}\b")
 
 def extract_phone_numbers(text):
     if not text:
         return []
+    # Find all matches for both English and Arabic patterns
     return english_phone.findall(text) + arabic_phone.findall(text)
 
 # --------------------------------------------
-# GET MESSAGES + EXTRACT (Optimized)
+# SESSION STATE INITIALIZATION
+# Used to store data between button clicks to prevent duplicates and maintain history.
 # --------------------------------------------
-# Session state initialization (Unchanged)
 if 'extracted_data' not in st.session_state:
-    st.session_state['extracted_data'] = {}
+    # Stores unique message keys (created_time, message content) for duplicate prevention
+    st.session_state['extracted_data'] = {} 
 if 'cumulative_df' not in st.session_state:
+    # Stores the final DataFrame containing all unique extractions across all pages/runs
     st.session_state['cumulative_df'] = pd.DataFrame(columns=["Sender", "Message", "Phone", "Created", "Page"])
 
-
+# --------------------------------------------
+# CORE LOGIC: GET MESSAGES + EXTRACT
+# --------------------------------------------
 def process_page(token, page_name):
-    # Get Unix timestamp for the start of today (UTC)
+    # Set the timezone to UTC for reliable timestamp calculation
     UTC = pytz.timezone('UTC')
-    today_start = datetime.combine(date.today(), datetime.min.time(), tzinfo=UTC)
-    today_unix_timestamp = int(today_start.timestamp())
+    now = datetime.now(UTC)
+    
+    # Calculate the Unix timestamp for 24 hours ago
+    last_24_hours = now - timedelta(hours=24)
+    last_24_hours_unix_timestamp = int(last_24_hours.timestamp())
 
-    # 🚀 OPTIMIZATION: ADDED LIMITS
-    # limit=20: Limit the number of conversations fetched initially.
-    # messages.limit(5): Limit messages returned per conversation to the 5 most recent.
+    # CONVERSATION URL: Fetches data since 24 hours ago, with limits for speed.
+    # limit=20: Max 20 most recently active conversations.
+    # messages.limit(5): Max 5 most recent messages within each conversation.
     url = (
         f"https://graph.facebook.com/v18.0/me/conversations?limit=20&" 
         f"fields=participants,messages.limit(5){{message,from,created_time}}&"
-        f"since={today_unix_timestamp}&"
+        f"since={last_24_hours_unix_timestamp}&"
         f"access_token={token}"
     )
 
     all_rows = []
     
     page_key = page_name
+    # Initialize the set for this page if it doesn't exist
     if page_key not in st.session_state['extracted_data']:
         st.session_state['extracted_data'][page_key] = set()
     
     previous_extractions = st.session_state['extracted_data'][page_key]
 
-    # Handle Pagination (only for conversations, which is faster now)
+    # Handle Pagination (for conversations)
     while url:
-        data = requests.get(url).json()
+        try:
+            data = requests.get(url).json()
 
-        for conv in data.get("data", []):
-            messages = conv.get("messages", {}).get("data", [])
-            
-            for msg in messages:
-                sender = msg.get("from", {}).get("name", "Unknown")
-                message = msg.get("message", "")
-                created = msg.get("created_time", "")
-                
-                # Check for duplicates using timestamp and message content
-                unique_key = (created, message) 
-                
-                if unique_key in previous_extractions:
-                    continue 
+            # Check for API errors
+            if data.get("error"):
+                st.error(f"API Error for {page_name}: {data['error']['message']}")
+                return []
 
-                for phone in extract_phone_numbers(message):
-                    all_rows.append([sender, message, phone, created])
-                    previous_extractions.add(unique_key)
+            for conv in data.get("data", []):
+                messages = conv.get("messages", {}).get("data", [])
+                
+                for msg in messages:
+                    sender = msg.get("from", {}).get("name", "Unknown")
+                    message = msg.get("message", "")
+                    created = msg.get("created_time", "")
                     
-        # Move to the next page of conversations
-        paging = data.get("paging", {})
-        url = paging.get("next") if paging.get("next") else None
-        
-        # Stop fetching after the first page of conversations if no next URL is found
-        if url is None:
-            break 
+                    # Key for duplicate check: (timestamp, message content)
+                    unique_key = (created, message) 
+                    
+                    if unique_key in previous_extractions:
+                        continue 
+
+                    for phone in extract_phone_numbers(message):
+                        # Store the data row
+                        all_rows.append([sender, message, phone, created])
+                        # Mark this message as processed
+                        previous_extractions.add(unique_key)
+                        
+            # Check for the next page of conversations
+            paging = data.get("paging", {})
+            url = paging.get("next") if paging.get("next") else None
+            
+            if url is None:
+                break 
+                
+        except requests.exceptions.RequestException as e:
+            st.error(f"Network error during API call for {page_name}: {e}")
+            break
 
     return all_rows
 
 # --------------------------------------------
-# STREAMLIT UI (Unchanged)
+# STREAMLIT UI
 # --------------------------------------------
 tabs = st.tabs(PAGES.keys())
 
@@ -112,35 +134,41 @@ for i, (page_name, token) in enumerate(PAGES.items()):
     with tabs[i]:
         st.subheader(f"📄 {page_name}")
 
-        if st.button(f"Extract TODAY's messages from {page_name}"):
-            st.info("⏳ Fetching today's messages...")
+        if st.button(f"Extract Last 24 Hours Messages from {page_name}"):
+            st.info("⏳ Fetching messages...")
 
             new_rows = process_page(token, page_name)
 
             if not new_rows:
-                st.warning("No new phone numbers found today.")
+                st.warning(f"No new phone numbers found in the last 24 hours for {page_name}.")
                 continue
 
             new_df = pd.DataFrame(new_rows, columns=["Sender", "Message", "Phone", "Created"])
             new_df['Page'] = page_name
             
-            st.success(f"Found {len(new_df)} **new** phone numbers today for **{page_name}**")
+            st.success(f"Found {len(new_df)} **new** phone numbers in the last 24 hours for **{page_name}**")
             
+            # Combine the new data with the cumulative data, dropping any duplicates
             st.session_state['cumulative_df'] = pd.concat(
                 [st.session_state['cumulative_df'], new_df], ignore_index=True
             ).drop_duplicates(subset=["Message", "Phone", "Created"]).reset_index(drop=True)
             
+            # Display only the newly found data in the current tab
             st.dataframe(new_df)
             
-# --- Display Cumulative Data ---
+# --------------------------------------------
+# CUMULATIVE DATA DISPLAY AND DOWNLOAD
+# --------------------------------------------
 st.markdown("---")
 st.header("✨ Cumulative Extracted Data")
 
 if st.session_state['cumulative_df'].empty:
     st.info("Run an extraction from a tab above to see the cumulative data.")
 else:
+    # Display the full cumulative DataFrame
     st.dataframe(st.session_state['cumulative_df'])
     
+    # Download button
     csv = st.session_state['cumulative_df'].to_csv(index=False).encode('utf-8')
     st.download_button(
         label="⬇️ Download All Extracted Data as CSV",
