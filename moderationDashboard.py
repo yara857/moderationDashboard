@@ -174,31 +174,14 @@ st.info(f"Total Unique Records: **{len(st.session_state.cumulative_df)}**")
 
 df = st.session_state.cumulative_df.copy()
 
-# ------------------------------------------------------------
-# Add Product Column
-# ------------------------------------------------------------
-def get_product(page):
-    if page == "DrElokabyDrPeel":
-        return "cold peeling"
-    elif page == "صيدليات العقبي":
-        return "نحافه"
-    else:
-        return "شعر"
-
-if "Product" not in df.columns:
-    df["Product"] = df["PageName"].apply(get_product)
-
-# ------------------------------------------------------------
-# Status Column - RESET to None for all rows
-# ------------------------------------------------------------
+# Ensure Status column exists
 if "Status" not in df.columns:
-    df["Status"] = "None"
-else:
-    df["Status"] = "None"
+    df["Status"] = "Not Distributed"  # default value
 
-st.write("### ✏️ Update Status")
+st.write("### ✏️ Update Status (Distributed / Not Distributed)")
 
-editable_df = df[["Phone", "PageName", "Product", "Sender", "Created", "Message", "Status"]]
+# Editable data table for status column only
+editable_df = df[["Phone", "PageName", "Sender", "Created", "Message", "Status"]].copy()
 
 edited_df = st.data_editor(
     editable_df,
@@ -206,63 +189,49 @@ edited_df = st.data_editor(
     column_config={
         "Status": st.column_config.SelectboxColumn(
             "Status",
-            options=[
-                "تم التوزيع",
-                "تم التأكيد",
-                "جاري المتابعة",
-                "تم الإلغاء",
-                "لا يرد",
-                "جاري المحاولة",
-                "None"
-            ],
+            options=["Distributed", "Not Distributed"],
+            help="Mark if this phone number was distributed or not",
         )
     },
     key="editor",
 )
 
+# Save updates back to session_state + CSV
 df.update(edited_df)
 st.session_state.cumulative_df = df
-
-# Save as Excel instead of CSV
-excel_path = "cumulative_phones.xlsx"
-df.to_excel(excel_path, index=False)
+save_cumulative_data(df)
 
 st.success("✔ Status updated and saved!")
 
-# ------------------------------------------------------------
-# TABLE FOR SELECTING ROWS TO DOWNLOAD (with Index)
-# ------------------------------------------------------------
+# -------------------------------------
+# SELECT ROWS FOR DOWNLOAD
+# -------------------------------------
 st.write("### 📥 Select Records to Download")
 
+# Add a checkbox column for selecting rows
 df_selection = df.copy()
 df_selection["Select"] = False
 
 selected_df = st.data_editor(
     df_selection,
     key="selector",
-    hide_index=False,
+    hide_index=True,
     column_config={
         "Select": st.column_config.CheckboxColumn("Select")
     },
     use_container_width=True,
 )
 
+# Filter selected rows
 download_data = selected_df[selected_df["Select"] == True].drop(columns=["Select"])
 
 if not download_data.empty:
-    # Save selected rows to Excel
-    from io import BytesIO
-    import openpyxl
-
-    buffer = BytesIO()
-    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-        download_data.to_excel(writer, index=True, sheet_name="Selected")
-
+    csv_selected = download_data.to_csv(index=False).encode("utf-8")
     st.download_button(
-        label="⬇ Download Selected Records (Excel)",
-        data=buffer.getvalue(),
-        file_name="selected_records.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        label="⬇ Download Selected Records",
+        data=csv_selected,
+        file_name="selected_facebook_records.csv",
+        mime="text/csv",
     )
 else:
     st.warning("No records selected for download.")
