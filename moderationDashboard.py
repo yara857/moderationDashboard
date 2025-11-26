@@ -167,25 +167,73 @@ for i, (page_name, token) in enumerate(PAGES.items()):
                     st.success(f"✅ Found {len(new_rows)} messages. Added **{new_count}** new, unique phone numbers from **{page_name}**. Skipped {skipped_count} duplicates.")
                 elif len(new_rows) > 0 and new_count == 0:
                     st.info(f"Found {len(new_rows)} messages, but all were duplicates. Total unique records unchanged.")
-                
-# --- GLOBAL CUMULATIVE DISPLAY ---
+    # --- GLOBAL CUMULATIVE DISPLAY ---
 st.markdown("---")
 st.header("🌎 Global Cumulative Extracted Phone Numbers")
 st.info(f"Total Unique Records: **{len(st.session_state.cumulative_df)}**")
 
-if not st.session_state.cumulative_df.empty:
-    # Ensure columns are in a good display order
-    display_df = st.session_state.cumulative_df[['Phone', 'PageName', 'Sender', 'Created', 'Message']].copy()
-    
-    st.dataframe(display_df, use_container_width=True)
-    
-    # Provide a download button for the entire cumulative dataset
-    csv = st.session_state.cumulative_df.to_csv(index=False).encode('utf-8')
+df = st.session_state.cumulative_df.copy()
+
+# Ensure Status column exists
+if "Status" not in df.columns:
+    df["Status"] = "Not Distributed"  # default value
+
+st.write("### ✏️ Update Status (Distributed / Not Distributed)")
+
+# Editable data table for status column only
+editable_df = df[["Phone", "PageName", "Sender", "Created", "Message", "Status"]].copy()
+
+edited_df = st.data_editor(
+    editable_df,
+    use_container_width=True,
+    column_config={
+        "Status": st.column_config.SelectboxColumn(
+            "Status",
+            options=["Distributed", "Not Distributed"],
+            help="Mark if this phone number was distributed or not",
+        )
+    },
+    key="editor",
+)
+
+# Save updates back to session_state + CSV
+df.update(edited_df)
+st.session_state.cumulative_df = df
+save_cumulative_data(df)
+
+st.success("✔ Status updated and saved!")
+
+# -------------------------------------
+# SELECT ROWS FOR DOWNLOAD
+# -------------------------------------
+st.write("### 📥 Select Records to Download")
+
+# Add a checkbox column for selecting rows
+df_selection = df.copy()
+df_selection["Select"] = False
+
+selected_df = st.data_editor(
+    df_selection,
+    key="selector",
+    hide_index=True,
+    column_config={
+        "Select": st.column_config.CheckboxColumn("Select")
+    },
+    use_container_width=True,
+)
+
+# Filter selected rows
+download_data = selected_df[selected_df["Select"] == True].drop(columns=["Select"])
+
+if not download_data.empty:
+    csv_selected = download_data.to_csv(index=False).encode("utf-8")
     st.download_button(
-        label="Download Cumulative Data as CSV",
-        data=csv,
-        file_name='facebook_cumulative_phones.csv',
-        mime='text/csv',
+        label="⬇ Download Selected Records",
+        data=csv_selected,
+        file_name="selected_facebook_records.csv",
+        mime="text/csv",
     )
 else:
-    st.warning("The cumulative database is currently empty. Run an extraction above!")
+    st.warning("No records selected for download.")
+
+
