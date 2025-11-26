@@ -1,4 +1,3 @@
-i wanna make a fiel for each page ,yo prevent delete phone numbers after update import streamlit as st
 import requests
 import re
 import pandas as pd
@@ -76,3 +75,4 @@ for i, (page_name, token) in enumerate(PAGES.items()):
 
             # -------- show only, NO download --------
             st.dataframe(df)
+
