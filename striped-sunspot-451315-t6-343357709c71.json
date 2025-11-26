@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "striped-sunspot-451315-t6",
+  "private_key_id": "343357709c71a13bb27322549023baa4147c150d",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDDaGm+GSTbkRXc\nzErnsqexCgZmTqoaSQ+5tSyMxgXZUjPhBCWz3unq3QsJVYMGgn6U7gIloo5pRxzb\nvIl8RgIXgZBk5crsqgOhRQhfJBT2aN5dFmZ1txrDLKPgPj9nUJRgos9aax7/HStw\nYcE9H/ebVBtY+eEGXTlDFUjIlzzKe+AWRYlhhvilEoWfa3KoAckSQ8MFXnz0hUtE\n+JYnmAMaC0MZNoO4w2DJ3RrMtkaG1Gljv7MF3QVnb1qbUq5X3dCkPryCUvTOBjvN\n4i5bnvaMr2OvIWuyeR3ZSwWq/2O1sk2qGtQjWeEbZ1tDZ7IdWwhW9kamL4MojZYq\nqRbq7jzJAgMBAAECggEAFXAhGb/8cTJLqbuoBB9vkla9OQAsXVHirccYqiEXhy4j\nju47jK5KD4BMs6t0AoTSilhKWAKriRVKLzlSBBZSKG4If2lOiARm/YxrTLTSr+31\nZ1ULzKJYB02gdPufTSBkBu4VvZ+++NIkb+Hpp2EYcywZC/vuGhqkK53sLEWbX8Nh\n9qIWQ+4Ft/mlNMdQdIn9wJcS6tP/LXNbfubi1l09BLBL+nUjouWQMtmkPtv2R9SL\nsNN0zs/erorfZkrjmq7LDkFwRmd6+l6uEy9wjNFKmOTKxRV3r6s28FDiKdpFCVNO\nLk8/YCB9r3oVf8DOc2ZLAfnCtn8fN6UMIxw4M+mWuQKBgQD8Hb48dWpRtiHOML94\nguiGSnOWHLi8guH7+/dYaaQu2vDKAwcWja+rND9r8TGQSvFs+GOWWk3CgBCoEo6f\nPfJWId0JwSHLjuuJ2fohd5mP5EnePoFns5UC+e1ve9GAJMCcbB52JqwrpeG/8xSC\nlIkTh7+0tNMuXaOmKgD0tn6JvwKBgQDGawhNEGs1kS3qQtvtwnT4D34EQFh9GVGG\n5BYvq0rw4CI2DRoPYiact6j3ZxUoCPEsgi1pSFcGASnuzsFJFNmK/iCFry9CrH66\nt2Us/0zYcd8Wtnk//Dlkl3MlbsEenRvdwxkBOP+JKubqgU56guIbQNZFBt85tJ2b\nry4IbA8LdwKBgQDRoHl5E7ffUS0yoF3T+iUU4/rPqfoA5GK6fnrfTJdzTiBAF9xg\n6FZUaBED03x+mZG8JZvIfDWDr7Apz6Q+y+cfrvB3F9rdwmweJtxPz34jopG49Qfs\nDemsm9rMg4tinSx543xAiU9Gy5q1W4yGNrLzRkAkJOYi+0EC/JHm54a3SQKBgFBN\nqUJnTryTUV3qSVBkzypGOt5FnIqk4JYTYddRIDd0vuPZUZ7APphWzI+0rJ9TXyiA\nVxixKmdHuUzpaNjHE3RpfYgdaqc1YOT4rH4VpWhETeHHYDNBRYkssnGH7akSNOD/\nwPL5upItRt/KDZUPu6sEBrRRH68fJlqH/71w3nXpAoGBANpJOZqjduGHHDSZeEWq\nrxXsy4gF/eEuF/MFV0iWwi85BFECmIyIE68/WfxB0Zo3CkmVgThc58dmHmmoU44b\nDpa8jPdhgBGjINVluSbhw8TPLixBx/rXShDvSymHp+SJmuwdoXuo7qJn6VcZG7+Q\nxt9p3DByCNUCrw2FigejyGCA\n-----END PRIVATE KEY-----\n",
+  "client_email": "live-146@striped-sunspot-451315-t6.iam.gserviceaccount.com",
+  "client_id": "104028272451904026226",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/live-146%40striped-sunspot-451315-t6.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
