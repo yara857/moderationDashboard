@@ -1,3 +1,4 @@
+import streamlit as st
 import requests
 import re
 import pandas as pd
@@ -24,7 +25,7 @@ PAGES = {
 }
 
 # --------------------------------------------
-# REGEX
+# REGEX FOR PHONE NUMBERS
 # --------------------------------------------
 english_phone = re.compile(r"\b01[0-9]{9}\b")
 arabic_phone = re.compile(r"\b٠١[٠-٩]{9}\b")
@@ -35,7 +36,7 @@ def extract_phone_numbers(text):
     return english_phone.findall(text) + arabic_phone.findall(text)
 
 # --------------------------------------------
-# GET MESSAGES + EXTRACT
+# PROCESS PAGE MESSAGES
 # --------------------------------------------
 def process_page(token):
     url = f"https://graph.facebook.com/v18.0/me/conversations?fields=participants,messages{{message,from,created_time}}&access_token={token}"
@@ -53,7 +54,14 @@ def process_page(token):
     return rows
 
 # --------------------------------------------
-# STREAMLIT UI
+# INITIALIZE SESSION STATE
+# --------------------------------------------
+for page_name in PAGES.keys():
+    if page_name not in st.session_state:
+        st.session_state[page_name] = pd.DataFrame(columns=["Sender", "Message", "Phone", "Created"])
+
+# --------------------------------------------
+# STREAMLIT TABS AND BUTTONS
 # --------------------------------------------
 tabs = st.tabs(PAGES.keys())
 
@@ -65,14 +73,18 @@ for i, (page_name, token) in enumerate(PAGES.items()):
             st.info("⏳ Fetching messages...")
 
             rows = process_page(token)
-
             if not rows:
                 st.warning("No phone numbers found.")
                 continue
 
-            df = pd.DataFrame(rows, columns=["Sender", "Message", "Phone", "Created"])
-            st.success(f"Found {len(df)} phone numbers")
+            new_df = pd.DataFrame(rows, columns=["Sender", "Message", "Phone", "Created"])
 
-            # -------- show only, NO download --------
-            st.dataframe(df)
+            # Append to session state and remove duplicates
+            st.session_state[page_name] = pd.concat(
+                [st.session_state[page_name], new_df], ignore_index=True
+            ).drop_duplicates(subset=["Phone"], keep="first")
 
+            st.success(f"Found {len(new_df)} new phone numbers, total stored: {len(st.session_state[page_name])}")
+
+        # Show cumulative data
+        st.dataframe(st.session_state[page_name])
