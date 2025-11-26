@@ -2,33 +2,16 @@ import streamlit as st
 import requests
 import re
 import pandas as pd
-from google.oauth2.service_account import Credentials
-from googleapiclient.discovery import build
 
 # --------------------------------------------
-# PAGE CONFIG
+# STREAMLIT CONFIG
 # --------------------------------------------
-st.set_page_config(page_title="Facebook Scraper", layout="wide")
+st.set_page_config(page_title="Facebook Phone Extractor", layout="wide")
 st.title("📩 Facebook Inbox Phone Extractor")
-st.caption("One tab for each Facebook Page")
-
-
-# --------------------------------------------
-# GOOGLE SHEET CONFIG
-# --------------------------------------------
-SPREADSHEET_ID = "1sUvzHYfY5RmAs0BPmW3B1tRFWe6ryNXudi1ss0kLJ3g"
-
-SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
-
-creds = Credentials.from_service_account_file(
-    r"striped-sunspot-451315-t6-343357709c71.json",
-    scopes=SCOPES
-)
-sheets = build("sheets", "v4", credentials=creds).spreadsheets()
-
+st.caption("Extract phone numbers from page inbox — NO Google Sheets")
 
 # --------------------------------------------
-# PAGE ACCESS TOKENS
+# PAGE TOKENS
 # --------------------------------------------
 PAGES = {
     "Elokabyofficial": "EAAIObOmY9V4BQHn7kMYN7ZA34fW3s5cc1Q1IKm8iLW0YBsjjqTLZC6twmqL7k882e2rpTGCm8cUEg5SYRZA0JVM9dItBcxyVZBu7mkOEi3emuGmtMQkNERlCGlULQc59bEiU5sOmcUrdK4yM744u2TTe1MtFVkZA5ZALdO1rditBcXZA83kIgfbcWQZC9YNHXVw3Aj0ZD",
@@ -42,53 +25,25 @@ PAGES = {
 }
 
 # --------------------------------------------
-# PHONE REGEX
+# REGEX
 # --------------------------------------------
 english_phone = re.compile(r"\b01[0-9]{9}\b")
 arabic_phone = re.compile(r"\b٠١[٠-٩]{9}\b")
-
 
 def extract_phone_numbers(text):
     if not text:
         return []
     return english_phone.findall(text) + arabic_phone.findall(text)
 
-
 # --------------------------------------------
-# RESET SHEET
+# GET MESSAGES + EXTRACT
 # --------------------------------------------
-def reset_sheet(sheet_name):
-    meta = sheets.get(spreadsheetId=SPREADSHEET_ID).execute()
-
-    for s in meta["sheets"]:
-        if s["properties"]["title"] == sheet_name:
-            sheets.batchUpdate(
-                spreadsheetId=SPREADSHEET_ID,
-                body={"requests": [{"deleteSheet": {"sheetId": s["properties"]["sheetId"]}}]}
-            ).execute()
-
-    sheets.batchUpdate(
-        spreadsheetId=SPREADSHEET_ID,
-        body={"requests": [{"addSheet": {"properties": {"title": sheet_name}}}]}
-    ).execute()
-
-    sheets.values().update(
-        spreadsheetId=SPREADSHEET_ID,
-        range=f"{sheet_name}!A1:D1",
-        valueInputOption="RAW",
-        body={"values": [["Sender", "Message", "Phone", "Created Time"]]}
-    ).execute()
-
-
-# --------------------------------------------
-# PROCESS PAGE
-# --------------------------------------------
-def process_page(page, token):
+def process_page(token):
     url = f"https://graph.facebook.com/v18.0/me/conversations?fields=participants,messages{{message,from,created_time}}&access_token={token}"
-    result = requests.get(url).json()
+    data = requests.get(url).json()
 
     rows = []
-    for conv in result.get("data", []):
+    for conv in data.get("data", []):
         for msg in conv.get("messages", {}).get("data", []):
             sender = msg.get("from", {}).get("name", "Unknown")
             message = msg.get("message", "")
@@ -98,30 +53,39 @@ def process_page(page, token):
 
     return rows
 
-
 # --------------------------------------------
-# STREAMLIT TABS
+# STREAMLIT UI
 # --------------------------------------------
-tabs = st.tabs(list(PAGES.keys()))
+tabs = st.tabs(PAGES.keys())
 
-for idx, (page, token) in enumerate(PAGES.items()):
-    with tabs[idx]:
-        st.subheader(f"📄 {page}")
+for i, (page_name, token) in enumerate(PAGES.items()):
+    with tabs[i]:
+        st.subheader(f"📄 {page_name}")
 
-        if st.button(f"Run extraction for {page}"):
-            st.info("⏳ Processing... Please wait...")
+        if st.button(f"Extract from {page_name}"):
+            st.info("⏳ Fetching messages...")
 
-            reset_sheet(page)
-            rows = process_page(page, token)
+            rows = process_page(token)
 
-            if rows:
-                sheets.values().update(
-                    spreadsheetId=SPREADSHEET_ID,
-                    range=f"{page}!A2",
-                    valueInputOption="RAW",
-                    body={"values": rows}
-                ).execute()
+            if not rows:
+                st.warning("No phone numbers found.")
+                continue
 
-            st.success(f"Done! Extracted {len(rows)} phone numbers.")
-            st.dataframe(pd.DataFrame(rows, columns=["Sender", "Message", "Phone", "Created"]))
+            df = pd.DataFrame(rows, columns=["Sender", "Message", "Phone", "Created"])
+            st.success(f"Found {len(df)} phone numbers")
+            st.dataframe(df)
 
+            # Download Excel or CSV
+            st.download_button(
+                label="📥 Download Excel",
+                data=df.to_excel(index=False, engine='openpyxl'),
+                file_name=f"{page_name}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+
+            st.download_button(
+                label="📥 Download CSV",
+                data=df.to_csv(index=False).encode(),
+                file_name=f"{page_name}.csv",
+                mime="text/csv"
+            )
