@@ -8,7 +8,7 @@ import pandas as pd
 # --------------------------------------------
 st.set_page_config(page_title="Facebook Phone Extractor", layout="wide")
 st.title("📩 Facebook Inbox Phone Extractor")
-st.caption("Extract phone numbers from page inbox — handles pagination, NO Excel/Sheets")
+st.caption("Extract phone numbers from page inbox")
 
 # --------------------------------------------
 # PAGE TOKENS
@@ -89,3 +89,4 @@ for i, (page_name, token) in enumerate(PAGES.items()):
             df = pd.DataFrame(rows, columns=["Sender", "Message", "Phone", "Created"])
             st.success(f"Found {len(df)} phone numbers")
             st.dataframe(df)
+
