@@ -9,23 +9,24 @@ from datetime import datetime, timedelta
 # CONFIG
 # --------------------------------------------
 st.set_page_config(page_title="Facebook Phone Extractor", layout="wide")
-st.title("📩 Facebook Inbox Phone Extractor (Auto every 10 mins)")
-st.caption("Automatically fetches Facebook inbox messages and saves unique phone numbers.")
+st.title("📩 Facebook Inbox Phone Extractor")
+st.caption("Auto-fetch every 10 minutes + documented CSV history")
 
 CUMULATIVE_FILE = "cumulative_phones.csv"
+DOCUMENT_LOG_FILE = "documented_phones_log.csv"
 
 # --------------------------------------------
-# PAGE TOKENS (REPLACE WITH REAL TOKENS)
+# PAGE TOKENS
 # --------------------------------------------
 PAGES = {
-    "Elokabyofficial": "EAAIObOmY9V4BQHn7kMYN7ZA34fW3s5cc1Q1IKm8iLW0YBsjjqTLZC6twmqL7k882e2rpTGCm8cUEg5SYRZA0JVM9dItBcxyVZBu7mkOEi3emuGmtMQkNERlCGlULQc59bEiU5sOmcUrdK4yM744u2TTe1MtFVkZA5ZALdO1rditBcXZA83kIgfbcWQZC9YNHXVw3Aj0ZD",
-    "Elokabyالعقبي": "EAAIObOmY9V4BQMxDV7mlEbG5epWvoZC08UYVOtZCV3xvc4UjoqoEGiL2XEmiYDFo1tOPSVZCmUk5Ahmmrg2IzLi7V6qmh5PPzYEqD3RKR7D5YGSlqLDfDN8cNFCkDm5TJAeXFrjd7CN5zO85QANsyuge8vgBfDqNwxKZBPLReNRppZBsDsyFQEZBix7BcxYyTisBeB",
-    "ElOkabyBeauty": "EAAIObOmY9V4BQBXRiKmZBfXk41oSPcZBtainPw9CcBdGbCHSeiQVWwDpday88HHKPkJXrv5KQMIhqSW2jxACzBvfbnpuGBY4YOPcmZBIHMoojdR33VTtFSTQKaWVpXaGreZANRrzxGmJry9HGf9YrOY7UtxxjPEV3etMDsYe54RrtA9AAQIEPZBOj55KEm6lFqX71ZANxa",
-    "تركيبات دكتور محمد العقبي": "EAAIObOmY9V4BQM6kWztoW74ek1gm4mpvRm4Qx7r92OL7KTwWdqiZC4bGPqGu8yE9mgjO34wSQJeTr3VesUMVP8UZA2dCJuJxSbUH0sE4F3PhJ2X6k0HMYPNYcENp0FBE4kQ0x0yhZC6YyX8mlJ1l8QbH5cIEp3ZB4PkfbpOwZCrYOWxIiAwnR9XqvgC4o7VlFSheG",
-    "تركيبات دكتور محمد العقبي للشعر": "EAAIObOmY9V4BQHvhZAzY0bZC7tw5V39846yvhhDI3KJIjwJQit7d8cHjLeIsOZCmWNbmRszjjojcWy1xCImw47GMbuoctaZCKZAmWn7WXuZCKLrKtjhBxcVSr2RHK7IlVrNqr48waJWQ2j4L7mayTJBooQ2pdBlXQe2SBZAqxxwTJ1WZCtVC1E7VxbaJYMZC1aU2i6BtDXguK",
-    "صيدليات العقبي Pharmac": "EAAIObOmY9V4BQLue7ExGaTjGypUSLx8BUjHnAYOit91imelbjSL6ZAN7OVfWJSV3KLgEev4tWxAPZCTN2kcxQN8isMqR1S6rUr3bTi0L8shuiCNLYZArZBs1vlgzOS8XmxqSHn4z1iZCp7ZCky8XWjQhNtK8ETpS5x50cosb6iqQZAUmMW7aEJRrmXG42GkxcZCjzbtBpWu2",
-    "صيدليات العقبي": "EAAIObOmY9V4BQIZAAHtQY8ZBWufAUAooQ4LHv4li2c7yS63tHTpZCIkR7Ng62FiXBmt88NkIapWoMX6IscHxy8z3ZCEfmzr16x5YBbr7iypDLSvk8fTLhhAYhIokEl2DRUQrld7baDeoAfeZC9Iu0arG4ZAa4QNRP6YgDLvEeZAp7xtipdJICOSiQZBs8PewopzmOmODMsjh",
-    "DrElokabyDrPeel": "EAAIObOmY9V4BQAz2ZCFN68D2P63afQG3WHo7tiVO0MDlkeYpICK1PWsXyGmsUhZCvSVoftNu79LeMrDxvMZC9H6qWEaegMPc5O64ZCkbeiaordTYb9PUQvX3bAScrTZA6lQw2oWBTu95rHZA18tbkSYNFqw5ePExmyWuslkiGCTjsBKiW6nUfB9LIcUR4Fn8VGKrQW"
+    "Elokabyofficial": "TOKEN_1",
+    "Elokabyالعقبي": "TOKEN_2",
+    "ElOkabyBeauty": "TOKEN_3",
+    "تركيبات دكتور محمد العقبي": "TOKEN_4",
+    "تركيبات دكتور محمد العقبي للشعر": "TOKEN_5",
+    "صيدليات العقبي Pharmac": "TOKEN_6",
+    "صيدليات العقبي": "TOKEN_7",
+    "DrElokabyDrPeel": "TOKEN_8",
 }
 
 # --------------------------------------------
@@ -40,18 +41,56 @@ def extract_phone_numbers(text):
     return english_phone.findall(text) + arabic_phone.findall(text)
 
 # --------------------------------------------
+# PRODUCT
+# --------------------------------------------
+def get_product(page):
+    if page == "DrElokabyDrPeel":
+        return "cold peeling"
+    elif page == "صيدليات العقبي":
+        return "نحافه"
+    return "شعر"
+
+# --------------------------------------------
 # DATA STORAGE
 # --------------------------------------------
-def load_cumulative_data():
-    if os.path.exists(CUMULATIVE_FILE):
-        return pd.read_csv(CUMULATIVE_FILE)
-    return pd.DataFrame(columns=["Sender", "Message", "Phone", "Created", "PageName", "Product", "Status"])
+def load_csv(path, columns):
+    if os.path.exists(path):
+        return pd.read_csv(path)
+    return pd.DataFrame(columns=columns)
 
-def save_cumulative_data(df):
-    df.to_csv(CUMULATIVE_FILE, index=False, encoding="utf-8-sig")
+def save_csv(df, path):
+    df.to_csv(path, index=False, encoding="utf-8-sig")
 
-def update_cumulative_data(rows, page_name):
-    df = load_cumulative_data()
+# --------------------------------------------
+# DOCUMENTATION LOG (APPEND ONLY)
+# --------------------------------------------
+def log_documentation(rows, page_name):
+    if not rows:
+        return
+
+    log_df = load_csv(
+        DOCUMENT_LOG_FILE,
+        ["Sender", "Message", "Phone", "Created", "PageName", "Product", "FetchTime"],
+    )
+
+    now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+
+    new_log = pd.DataFrame(rows, columns=["Sender", "Message", "Phone", "Created"])
+    new_log["PageName"] = page_name
+    new_log["Product"] = get_product(page_name)
+    new_log["FetchTime"] = now
+
+    log_df = pd.concat([log_df, new_log], ignore_index=True)
+    save_csv(log_df, DOCUMENT_LOG_FILE)
+
+# --------------------------------------------
+# UPDATE CUMULATIVE
+# --------------------------------------------
+def update_cumulative(rows, page_name):
+    df = load_csv(
+        CUMULATIVE_FILE,
+        ["Sender", "Message", "Phone", "Created", "PageName", "Product", "Status"],
+    )
 
     if not rows:
         return df, 0, 0
@@ -67,7 +106,7 @@ def update_cumulative_data(rows, page_name):
     new_count = len(deduped) - len(df)
     skipped = len(new_df) - new_count
 
-    save_cumulative_data(deduped)
+    save_csv(deduped, CUMULATIVE_FILE)
     return deduped, new_count, skipped
 
 # --------------------------------------------
@@ -93,26 +132,19 @@ def process_page(token):
     return rows
 
 # --------------------------------------------
-# PRODUCT LOGIC
-# --------------------------------------------
-def get_product(page):
-    if page == "DrElokabyDrPeel":
-        return "cold peeling"
-    elif page == "صيدليات العقبي":
-        return "نحافه"
-    return "شعر"
-
-# --------------------------------------------
 # SESSION STATE
 # --------------------------------------------
-if "cumulative_df" not in st.session_state:
-    st.session_state.cumulative_df = load_cumulative_data()
+if "df" not in st.session_state:
+    st.session_state.df = load_csv(
+        CUMULATIVE_FILE,
+        ["Sender", "Message", "Phone", "Created", "PageName", "Product", "Status"],
+    )
 
 if "last_fetch" not in st.session_state:
     st.session_state.last_fetch = None
 
 # --------------------------------------------
-# AUTO FETCH EVERY 10 MIN
+# AUTO FETCH (EVERY 10 MIN)
 # --------------------------------------------
 now = datetime.utcnow()
 
@@ -125,17 +157,21 @@ if (
 
     for page, token in PAGES.items():
         rows = process_page(token)
-        st.session_state.cumulative_df, n, s = update_cumulative_data(rows, page)
+
+        # 🔒 DOCUMENT EVERYTHING
+        log_documentation(rows, page)
+
+        st.session_state.df, n, s = update_cumulative(rows, page)
         total_new += n
         total_skip += s
 
     st.session_state.last_fetch = now
-    st.toast(f"🔄 Auto fetched | New: {total_new} | Skipped: {total_skip}")
+    st.toast(f"📁 Documented & fetched | New: {total_new} | Skipped: {total_skip}")
 
 # --------------------------------------------
 # MANUAL FETCH
 # --------------------------------------------
-st.markdown("## 🔁 Manual Fetch")
+st.subheader("🔁 Manual Fetch")
 
 tabs = st.tabs(PAGES.keys())
 
@@ -143,15 +179,14 @@ for i, (page, token) in enumerate(PAGES.items()):
     with tabs[i]:
         if st.button(f"Fetch {page}", key=page):
             rows = process_page(token)
-            st.session_state.cumulative_df, n, s = update_cumulative_data(rows, page)
+            log_documentation(rows, page)
+            st.session_state.df, n, s = update_cumulative(rows, page)
             st.success(f"Added {n} | Skipped {s}")
 
 # --------------------------------------------
-# EDIT STATUS
+# STATUS EDIT
 # --------------------------------------------
-st.markdown("## ✏️ Update Status")
-
-df = st.session_state.cumulative_df.copy()
+st.subheader("✏️ Update Status")
 
 status_options = [
     "تم التوزيع",
@@ -164,7 +199,7 @@ status_options = [
 ]
 
 edited = st.data_editor(
-    df,
+    st.session_state.df,
     column_config={
         "Status": st.column_config.SelectboxColumn(
             "Status", options=status_options
@@ -173,34 +208,18 @@ edited = st.data_editor(
     use_container_width=True,
 )
 
-df.update(edited)
-save_cumulative_data(df)
-st.session_state.cumulative_df = df
+st.session_state.df.update(edited)
+save_csv(st.session_state.df, CUMULATIVE_FILE)
 
 # --------------------------------------------
 # DOWNLOAD
 # --------------------------------------------
-st.markdown("## 📥 Download Selected")
+st.subheader("📥 Download Documented Log")
 
-df_dl = df.copy()
-df_dl["Select"] = False
-
-selected = st.data_editor(
-    df_dl,
-    column_config={"Select": st.column_config.CheckboxColumn()},
-    hide_index=False,
-    use_container_width=True,
-)
-
-out = selected[selected["Select"]].drop(columns=["Select"])
-
-if not out.empty:
+if os.path.exists(DOCUMENT_LOG_FILE):
     st.download_button(
-        "⬇ Download CSV",
-        out.to_csv(index=True, encoding="utf-8-sig"),
-        "selected_records.csv",
-        "text/csv",
+        "⬇ Download Full Documentation CSV",
+        open(DOCUMENT_LOG_FILE, "rb"),
+        file_name="documented_phones_log.csv",
+        mime="text/csv",
     )
-else:
-    st.warning("No rows selected.")
-
