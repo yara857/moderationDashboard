@@ -3,6 +3,10 @@ import re
 import pandas as pd
 import streamlit as st
 import os
+import time  # <--- NEW IMPORT
+
+# Define the refresh interval (in seconds)
+REFRESH_INTERVAL_SECONDS = 60 * 1  # 1 minute
 
 # --- FILE PATH FOR PERSISTENCE ---
 # In a real-world Streamlit deployment, this file would need to be stored
@@ -19,20 +23,21 @@ st.caption("Extracts phone numbers from page inbox and saves new, unique entries
 
 # --------------------------------------------
 # PAGE TOKENS (Using tokens from your original code)
+# ... (All your existing PAGES dictionary remains here) ...
 # --------------------------------------------
 PAGES = {
-    "Elokabyofficial": "EAAIObOmY9V4BQHn7kMYN7ZA34fW3s5cc1Q1IKm8iLW0YBsjjqTLZC6twmqL7k882e2rpTGCm8cUEg5SYRZA0JVM9dItBcxyVZBu7mkOEi3emuGmtMQkNERlCGlULQc59bEiU5sOmcUrdK4yM744u2TTe1MtFVkZA5ZALdO1rditBcXZA83kIgfbcWQZC9YNHXVw3Aj0ZD",
+    "Elokabyofficial": "EAAIObOmY9V4BQHn7kMYN7ZA34fW3s5cc1Q1IKm8iLW0YBsjjqTLZC6twmqL7k882e2rpTGCm8cUEg5SYRZA0JVM9dItBcxyVZBu7mkOEi3emuGmtMQkNERlCGlULQc59bEiU5sOmcUrdK4y0744u2TTe1MtFVkZA5ZALdO1rditBcXZA83kIgfbcWQZC9YNHXVw3Aj0ZD",
     "Elokabyالعقبي": "EAAIObOmY9V4BQMxDV7mlEbG5epWvoZC08UYVOtZCV3xvc4UjoqoEGiL2XEmiYDFo1tOPSVZCmUk5Ahmmrg2IzLi7V6qmh5PPzYEqD3RKR7D5YGSlqLDfDN8cNFCkDm5TJAeXFrjd7CN5zO85QANsyuge8vgBfDqNwxKZBPLReNRppZBsDsyFQEZBix7BcxYyTisBeB",
     "ElOkabyBeauty": "EAAIObOmY9V4BQBXRiKmZBfXk41oSPcZBtainPw9CcBdGbCHSeiQVWwDpday88HHKPkJXrv5KQMIhqSW2jxACzBvfbnpuGBY4YOPcmZBIHMoojdR33VTtFSTQKaWVpXaGreZANRrzxGmJry9HGf9YrOY7UtxxjPEV3etMDsYe54RrtA9AAQIEPZBOj55KEm6lFqX71ZANxa",
     "تركيبات دكتور محمد العقبي": "EAAIObOmY9V4BQM6kWztoW74ek1gm4mpvRm4Qx7r92OL7KTwWdqiZC4bGPqGu8yE9mgjO34wSQJeTr3VesUMVP8UZA2dCJuJxSbUH0sE4F3PhJ2X6k0HMYPNYcENp0FBE4kQ0x0yhZC6YyX8mlJ1l8QbH5cIEp3ZB4PkfbpOwZCrYOWxIiAwnR9XqvgC4o7VlFSheG",
     "تركيبات دكتور محمد العقبي للشعر": "EAAIObOmY9V4BQHvhZAzY0bZC7tw5V39846yvhhDI3KJIjwJQit7d8cHjLeIsOZCmWNbmRszjjojcWy1xCImw47GMbuoctaZCKZAmWn7WXuZCKLrKtjhBxcVSr2RHK7IlVrNqr48waJWQ2j4L7mayTJBooQ2pdBlXQe2SBZAqxxwTJ1WZCtVC1E7VxbaJYMZC1aU2i6BtDXguK",
     "صيدليات العقبي Pharmac": "EAAIObOmY9V4BQLue7ExGaTjGypUSLx8BUjHnAYOit91imelbjSL6ZAN7OVfWJSV3KLgEev4tWxAPZCTN2kcxQN8isMqR1S6rUr3bTi0L8shuiCNLYZArZBs1vlgzOS8XmxqSHn4z1iZCp7ZCky8XWjQhNtK8ETpS5x50cosb6iqQZAUmMW7aEJRrmXG42GkxcZCjzbtBpWu2",
-    "صيدليات العقبي": "EAAIObOmY9V4BQIZAAHtQY8ZBWufAUAooQ4LHv4li2c7yS63tHTpZCIkR7Ng62FiXBmt88NkIapWoMX6IscHxy8z3ZCEfmzr16x5YBbr7iypDLSvk8fTLhhAYhIokEl2DRUQrld7baDeoAfeZC9Iu0arG4ZAa4QNRP6YgDLvEeZAp7xtipdJICOSiQZBs8PewopzmOmODMsjh",
+    "صيدليات العقبي": "EAAIObOmY9V4BQIZAAHtQY8ZBWufAUAooQ4LHf4li2c7yS63tHTpZCIkR7Ng62FiXBmt88NkIapWoMX6IscHxy8z3ZCEfmzr16x5YBbr7iypDLSvk8fTLhhAYhIokEl2DRUQrld7baDeoAfeZC9Iu0arG4ZAa4QNRP6YgDLvEeZAp7xtipdJICOSiQZBs8PewopzmOmODMsjh",
     "DrElokabyDrPeel": "EAAIObOmY9V4BQAz2ZCFN68D2P63afQG3WHo7tiVO0MDlkeYpICK1PWsXyGmsUhZCvSVoftNu79LeMrDxvMZC9H6qWEaegMPc5O64ZCkbeiaordTYb9PUQvX3bAScrTZA6lQw2oWBTu95rHZA18tbkSYNFqw5ePExmyWuslkiGCTjsBKiW6nUfB9LIcUR4Fn8VGKrQW"
 }
-
 # --------------------------------------------
 # REGEX
+# ... (All your existing REGEX and helper functions remain here) ...
 # --------------------------------------------
 english_phone = re.compile(r"\b01[0-9]{9}\b")
 arabic_phone = re.compile(r"\b٠١[٠-٩]{9}\b")
@@ -45,6 +50,7 @@ def extract_phone_numbers(text):
 
 # --------------------------------------------
 # DATA PERSISTENCE FUNCTIONS
+# ... (All your existing persistence functions remain here) ...
 # --------------------------------------------
 def load_cumulative_data():
     """Loads the cumulative phone data from the CSV file."""
@@ -96,10 +102,8 @@ def update_cumulative_data(new_rows, page_name):
 
 # --------------------------------------------
 # GET MESSAGES + EXTRACT (from your original code)
+# ... (All your existing process_page function remains here) ...
 # --------------------------------------------
-# NOTE: The Facebook API call must be executed securely on a backend server 
-# in a production environment. Running this directly in Streamlit client-side 
-# is highly insecure. This function is maintained to match your original structure.
 def process_page(token, page_name):
     """Fetches messages (simulated or real) and extracts phone numbers."""
     url = f"https://graph.facebook.com/v18.0/me/conversations?fields=participants,messages{{message,from,created_time}}&access_token={token}"
@@ -141,6 +145,8 @@ def process_page(token, page_name):
 # Initialize session state for the cumulative DataFrame
 if 'cumulative_df' not in st.session_state:
     st.session_state.cumulative_df = load_cumulative_data()
+    # Initialize last_refresh_time
+    st.session_state.last_refresh_time = time.time()
 
 # Create tabs for each page
 tabs = st.tabs(PAGES.keys())
@@ -161,6 +167,9 @@ for i, (page_name, token) in enumerate(PAGES.items()):
                     
                 # 2. Update the cumulative data, handle duplicates, and save
                 st.session_state.cumulative_df, new_count, skipped_count = update_cumulative_data(new_rows, page_name)
+                
+                # UPDATE LAST REFRESH TIME AFTER MANUAL CLICK
+                st.session_state.last_refresh_time = time.time()
 
                 # 3. Display results of the update
                 if new_count > 0:
@@ -171,7 +180,7 @@ for i, (page_name, token) in enumerate(PAGES.items()):
 st.markdown("---")
 st.header("🌎 Global Cumulative Extracted Phone Numbers")
 st.info(f"Total Unique Records: **{len(st.session_state.cumulative_df)}**")
-
+# ... (rest of your UI logic remains the same, calculating 'df', data editor, etc.) ...
 df = st.session_state.cumulative_df.copy()
 
 # ------------------------------------------------------------
@@ -207,7 +216,7 @@ status_options = [
 if "Status" not in df.columns:
     df["Status"] = "None"
 else:
-    df["Status"] = "None"   # RESET ALL STATS
+    df["Status"] = "None"    # RESET ALL STATS
 
 # ------------------------------------------------------------
 # STATUS EDITOR TABLE
@@ -247,7 +256,7 @@ df_selection["Select"] = False
 
 selected_df = st.data_editor(
     df_selection,
-    hide_index=False,     # SHOW INDEX
+    hide_index=False,      # SHOW INDEX
     key="selector",
     column_config={
         "Select": st.column_config.CheckboxColumn("Select")
@@ -268,3 +277,19 @@ if not download_data.empty:
     )
 else:
     st.warning("No records selected for download.")
+
+# ------------------------------------------------------------
+# AUTO REFRESH LOGIC <--- NEW SECTION
+# ------------------------------------------------------------
+# Check if the elapsed time since the last refresh is greater than the interval
+time_elapsed = time.time() - st.session_state.last_refresh_time
+
+if time_elapsed >= REFRESH_INTERVAL_SECONDS:
+    st.info(f"Auto-refreshing the page to check for new data. Next refresh in {REFRESH_INTERVAL_SECONDS} seconds.")
+    # Update the last refresh time
+    st.session_state.last_refresh_time = time.time()
+    # Rerun the entire script from the top
+    st.rerun() 
+else:
+    # Display countdown until next refresh
+    st.caption(f"Next auto-check in **{int(REFRESH_INTERVAL_SECONDS - time_elapsed)}** seconds.")
