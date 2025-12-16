@@ -9,14 +9,13 @@ from datetime import datetime, timedelta
 # CONFIG
 # --------------------------------------------
 st.set_page_config(page_title="Facebook Phone Extractor", layout="wide")
-st.title("📩 Facebook Inbox Phone Extractor")
-st.caption("Auto-fetch every 10 minutes + documented CSV history")
+st.title("📩 Facebook Inbox Phone Extractor (Auto every 10 mins)")
+st.caption("Automatically fetches Facebook inbox messages and saves unique phone numbers.")
 
 CUMULATIVE_FILE = "cumulative_phones.csv"
-DOCUMENT_LOG_FILE = "documented_phones_log.csv"
 
 # --------------------------------------------
-# PAGE TOKENS
+# PAGE TOKENS (REPLACE WITH REAL TOKENS)
 # --------------------------------------------
 PAGES = {
     "Elokabyofficial": "TOKEN_1",
@@ -41,56 +40,18 @@ def extract_phone_numbers(text):
     return english_phone.findall(text) + arabic_phone.findall(text)
 
 # --------------------------------------------
-# PRODUCT
-# --------------------------------------------
-def get_product(page):
-    if page == "DrElokabyDrPeel":
-        return "cold peeling"
-    elif page == "صيدليات العقبي":
-        return "نحافه"
-    return "شعر"
-
-# --------------------------------------------
 # DATA STORAGE
 # --------------------------------------------
-def load_csv(path, columns):
-    if os.path.exists(path):
-        return pd.read_csv(path)
-    return pd.DataFrame(columns=columns)
+def load_cumulative_data():
+    if os.path.exists(CUMULATIVE_FILE):
+        return pd.read_csv(CUMULATIVE_FILE)
+    return pd.DataFrame(columns=["Sender", "Message", "Phone", "Created", "PageName", "Product", "Status"])
 
-def save_csv(df, path):
-    df.to_csv(path, index=False, encoding="utf-8-sig")
+def save_cumulative_data(df):
+    df.to_csv(CUMULATIVE_FILE, index=False, encoding="utf-8-sig")
 
-# --------------------------------------------
-# DOCUMENTATION LOG (APPEND ONLY)
-# --------------------------------------------
-def log_documentation(rows, page_name):
-    if not rows:
-        return
-
-    log_df = load_csv(
-        DOCUMENT_LOG_FILE,
-        ["Sender", "Message", "Phone", "Created", "PageName", "Product", "FetchTime"],
-    )
-
-    now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-
-    new_log = pd.DataFrame(rows, columns=["Sender", "Message", "Phone", "Created"])
-    new_log["PageName"] = page_name
-    new_log["Product"] = get_product(page_name)
-    new_log["FetchTime"] = now
-
-    log_df = pd.concat([log_df, new_log], ignore_index=True)
-    save_csv(log_df, DOCUMENT_LOG_FILE)
-
-# --------------------------------------------
-# UPDATE CUMULATIVE
-# --------------------------------------------
-def update_cumulative(rows, page_name):
-    df = load_csv(
-        CUMULATIVE_FILE,
-        ["Sender", "Message", "Phone", "Created", "PageName", "Product", "Status"],
-    )
+def update_cumulative_data(rows, page_name):
+    df = load_cumulative_data()
 
     if not rows:
         return df, 0, 0
@@ -106,7 +67,7 @@ def update_cumulative(rows, page_name):
     new_count = len(deduped) - len(df)
     skipped = len(new_df) - new_count
 
-    save_csv(deduped, CUMULATIVE_FILE)
+    save_cumulative_data(deduped)
     return deduped, new_count, skipped
 
 # --------------------------------------------
@@ -132,19 +93,26 @@ def process_page(token):
     return rows
 
 # --------------------------------------------
+# PRODUCT LOGIC
+# --------------------------------------------
+def get_product(page):
+    if page == "DrElokabyDrPeel":
+        return "cold peeling"
+    elif page == "صيدليات العقبي":
+        return "نحافه"
+    return "شعر"
+
+# --------------------------------------------
 # SESSION STATE
 # --------------------------------------------
-if "df" not in st.session_state:
-    st.session_state.df = load_csv(
-        CUMULATIVE_FILE,
-        ["Sender", "Message", "Phone", "Created", "PageName", "Product", "Status"],
-    )
+if "cumulative_df" not in st.session_state:
+    st.session_state.cumulative_df = load_cumulative_data()
 
 if "last_fetch" not in st.session_state:
     st.session_state.last_fetch = None
 
 # --------------------------------------------
-# AUTO FETCH (EVERY 10 MIN)
+# AUTO FETCH EVERY 10 MIN
 # --------------------------------------------
 now = datetime.utcnow()
 
@@ -157,21 +125,17 @@ if (
 
     for page, token in PAGES.items():
         rows = process_page(token)
-
-        # 🔒 DOCUMENT EVERYTHING
-        log_documentation(rows, page)
-
-        st.session_state.df, n, s = update_cumulative(rows, page)
+        st.session_state.cumulative_df, n, s = update_cumulative_data(rows, page)
         total_new += n
         total_skip += s
 
     st.session_state.last_fetch = now
-    st.toast(f"📁 Documented & fetched | New: {total_new} | Skipped: {total_skip}")
+    st.toast(f"🔄 Auto fetched | New: {total_new} | Skipped: {total_skip}")
 
 # --------------------------------------------
 # MANUAL FETCH
 # --------------------------------------------
-st.subheader("🔁 Manual Fetch")
+st.markdown("## 🔁 Manual Fetch")
 
 tabs = st.tabs(PAGES.keys())
 
@@ -179,14 +143,15 @@ for i, (page, token) in enumerate(PAGES.items()):
     with tabs[i]:
         if st.button(f"Fetch {page}", key=page):
             rows = process_page(token)
-            log_documentation(rows, page)
-            st.session_state.df, n, s = update_cumulative(rows, page)
+            st.session_state.cumulative_df, n, s = update_cumulative_data(rows, page)
             st.success(f"Added {n} | Skipped {s}")
 
 # --------------------------------------------
-# STATUS EDIT
+# EDIT STATUS
 # --------------------------------------------
-st.subheader("✏️ Update Status")
+st.markdown("## ✏️ Update Status")
+
+df = st.session_state.cumulative_df.copy()
 
 status_options = [
     "تم التوزيع",
@@ -199,7 +164,7 @@ status_options = [
 ]
 
 edited = st.data_editor(
-    st.session_state.df,
+    df,
     column_config={
         "Status": st.column_config.SelectboxColumn(
             "Status", options=status_options
@@ -208,18 +173,33 @@ edited = st.data_editor(
     use_container_width=True,
 )
 
-st.session_state.df.update(edited)
-save_csv(st.session_state.df, CUMULATIVE_FILE)
+df.update(edited)
+save_cumulative_data(df)
+st.session_state.cumulative_df = df
 
 # --------------------------------------------
 # DOWNLOAD
 # --------------------------------------------
-st.subheader("📥 Download Documented Log")
+st.markdown("## 📥 Download Selected")
 
-if os.path.exists(DOCUMENT_LOG_FILE):
+df_dl = df.copy()
+df_dl["Select"] = False
+
+selected = st.data_editor(
+    df_dl,
+    column_config={"Select": st.column_config.CheckboxColumn()},
+    hide_index=False,
+    use_container_width=True,
+)
+
+out = selected[selected["Select"]].drop(columns=["Select"])
+
+if not out.empty:
     st.download_button(
-        "⬇ Download Full Documentation CSV",
-        open(DOCUMENT_LOG_FILE, "rb"),
-        file_name="documented_phones_log.csv",
-        mime="text/csv",
+        "⬇ Download CSV",
+        out.to_csv(index=True, encoding="utf-8-sig"),
+        "selected_records.csv",
+        "text/csv",
     )
+else:
+    st.warning("No rows selected.")
