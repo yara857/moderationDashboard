@@ -6,10 +6,12 @@ import os
 from datetime import datetime, timedelta
 from streamlit_autorefresh import st_autorefresh
 
+
+# AUTO REFRESH EVERY 10 MINUTES (NATIVE)
 # --------------------------------------------
-# AUTO REFRESH EVERY 10 MINUTES
-# --------------------------------------------
-st_autorefresh(interval=600_000, key="auto_refresh")
+st.experimental_set_query_params(refresh=str(datetime.utcnow()))
+st.experimental_rerun()
+
 
 # --------------------------------------------
 # FILE PATH FOR PERSISTENCE
@@ -230,3 +232,4 @@ if not download_df.empty:
     )
 else:
     st.warning("No rows selected.")
+
